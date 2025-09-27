@@ -45,7 +45,7 @@ def start_services_and_package():
     try:
         while True:
             input()  # Wait for Enter key
-            sleep(1)  # Give some time for buffers to fill
+            sleep(5)  # Give some time for buffers to fill
             package_outputs()
     except KeyboardInterrupt:
         print("[INFO] Server runner exiting.")
