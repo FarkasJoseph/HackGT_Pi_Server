@@ -1,0 +1,41 @@
+import threading
+import time
+import os
+import glob
+import gzip
+import shutil
+from capture_photos import run_photo_capture
+from rolling_audio_capture import run_rolling_audio_capture
+
+def package_outputs(photo_dir="photos", audio_file="last_15_seconds.wav", archive_name="output_package.gz"):
+    # Collect latest photo files
+    photos = sorted(glob.glob(os.path.join(photo_dir, "photo_*.jpg")))
+    files_to_package = photos[-5:] if len(photos) >= 5 else photos  # Package last 5 photos
+    if os.path.exists(audio_file):
+        files_to_package.append(audio_file)
+    else:
+        print(f"[WARN] Audio file '{audio_file}' not found for packaging.")
+    # Create a .gzip archive
+    with gzip.open(archive_name, 'wb') as gz:
+        for fname in files_to_package:
+            with open(fname, 'rb') as f:
+                shutil.copyfileobj(f, gz)
+                print(f"[INFO] Added '{fname}' to archive '{archive_name}'.")
+    print(f"[INFO] Packaged {len(files_to_package)} files into '{archive_name}'.")
+
+def start_services_and_package():
+    # Start photo and audio capture in background threads
+    photo_thread = threading.Thread(target=run_photo_capture, kwargs={"output_dir": "photos", "max_photos": 15, "interval": 1}, daemon=True)
+    audio_thread = threading.Thread(target=run_rolling_audio_capture, kwargs={"duration": 15, "refresh": 1, "output_file": "last_15_seconds.wav", "samplerate": 44100, "channels": 1}, daemon=True)
+    photo_thread.start()
+    audio_thread.start()
+    print("[INFO] Photo and audio capture started.")
+    try:
+        while True:
+            time.sleep(15)  # Package every 15 seconds
+            package_outputs()
+    except KeyboardInterrupt:
+        print("[INFO] Server runner exiting.")
+
+if __name__ == "__main__":
+    start_services_and_package()
