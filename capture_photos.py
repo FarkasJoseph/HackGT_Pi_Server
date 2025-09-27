@@ -4,7 +4,7 @@ import time
 import os
 import glob
 
-def run_photo_capture(output_dir="photos", max_photos=15, interval=0.2):
+def run_photo_capture(output_dir="photos", max_photos=15, interval=1):
     os.makedirs(output_dir, exist_ok=True)
     print(f"[INFO] Output directory is '{output_dir}'.")
 
