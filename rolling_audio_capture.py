@@ -5,12 +5,15 @@ import numpy as np
 import threading
 import time
 
+buffer_lock_global = threading.Lock()
+
 def run_rolling_audio_capture(duration=15, refresh=1, output_file="last_15_seconds.wav", samplerate=44100, channels=1):
     buffer_samples = duration * samplerate
     audio_buffer = np.zeros((buffer_samples, channels), dtype='float32')
     write_ptr = [0]  # Use list for mutability in nested functions
     buffer_filled = [False]
-    buffer_lock = threading.Lock()
+    global buffer_lock_global
+    buffer_lock = buffer_lock_global
 
     def audio_callback(indata, frames, time_info, status):
         with buffer_lock:
@@ -42,6 +45,9 @@ def run_rolling_audio_capture(duration=15, refresh=1, output_file="last_15_secon
                     print(f"[{time.strftime('%H:%M:%S')}] Buffer not yet full: waiting to save output.")
 
     threading.Thread(target=save_audio_loop, daemon=True).start()
+
+def get_audio_buffer_lock():
+    return buffer_lock_global
     with sd.InputStream(samplerate=samplerate, channels=channels, callback=audio_callback, blocksize=1024):
         print(f"Recording... Outputting rolling {duration}-second audio to {output_file}. Press Ctrl+C to stop.")
         try:

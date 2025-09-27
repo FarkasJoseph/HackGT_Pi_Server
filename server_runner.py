@@ -5,7 +5,7 @@ import os
 import glob
 import threading
 from capture_photos import run_photo_capture, trigger_photo_capture
-from rolling_audio_capture import run_rolling_audio_capture
+from rolling_audio_capture import run_rolling_audio_capture, get_audio_buffer_lock
 from button_watcher import ButtonWatcher
 
 photo_buffer = 20
@@ -17,10 +17,12 @@ def package_outputs(photo_dir="photos", audio_file="audio_buffer.wav", archive_n
     files_to_package = photos[-photo_buffer:] if len(photos) >= photo_buffer else photos  # Package last 15 photos
     temp_audio_file = None
     if os.path.exists(audio_file):
-        # Make a temporary copy of the WAV file
-        temp_audio_file = audio_file + ".copy.wav"
-        import shutil
-        shutil.copy2(audio_file, temp_audio_file)
+        # Thread-safe copy of the WAV file
+        audio_lock = get_audio_buffer_lock()
+        with audio_lock:
+            temp_audio_file = audio_file + ".copy.wav"
+            import shutil
+            shutil.copy2(audio_file, temp_audio_file)
         files_to_package.append(temp_audio_file)
     else:
         print(f"[WARN] Audio file '{audio_file}' not found for packaging.")
