@@ -1,60 +1,77 @@
-
 import sounddevice as sd
 import soundfile as sf
 import numpy as np
 import threading
 import time
 
-buffer_lock_global = threading.Lock()
+class RollingAudioCapture:
+    def __init__(self, duration=15, refresh=1, output_file="last_15_seconds.wav", samplerate=44100, channels=1):
+        self.duration = duration
+        self.refresh = refresh
+        self.output_file = output_file
+        self.samplerate = samplerate
+        self.channels = channels
+        self.buffer_samples = duration * samplerate
+        self.audio_buffer = np.zeros((self.buffer_samples, channels), dtype='float32')
+        self.write_ptr = 0
+        self.buffer_filled = False
+        self.buffer_lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._save_thread = threading.Thread(target=self._save_audio_loop, daemon=True)
 
-def run_rolling_audio_capture(duration=15, refresh=1, output_file="last_15_seconds.wav", samplerate=44100, channels=1):
-    buffer_samples = duration * samplerate
-    audio_buffer = np.zeros((buffer_samples, channels), dtype='float32')
-    write_ptr = [0]  # Use list for mutability in nested functions
-    buffer_filled = [False]
-    global buffer_lock_global
-    buffer_lock = buffer_lock_global
-
-    def audio_callback(indata, frames, time_info, status):
-        with buffer_lock:
-            end_ptr = write_ptr[0] + frames
-            if end_ptr < buffer_samples:
-                audio_buffer[write_ptr[0]:end_ptr] = indata
+    def audio_callback(self, indata, frames, time_info, status):
+        with self.buffer_lock:
+            end_ptr = self.write_ptr + frames
+            if end_ptr < self.buffer_samples:
+                self.audio_buffer[self.write_ptr:end_ptr] = indata
             else:
-                first_part = buffer_samples - write_ptr[0]
-                audio_buffer[write_ptr[0]:] = indata[:first_part]
-                audio_buffer[:frames - first_part] = indata[first_part:]
-                buffer_filled[0] = True
-            write_ptr[0] = (write_ptr[0] + frames) % buffer_samples
-            if write_ptr[0] == 0:
-                buffer_filled[0] = True
+                first_part = self.buffer_samples - self.write_ptr
+                self.audio_buffer[self.write_ptr:] = indata[:first_part]
+                self.audio_buffer[:frames - first_part] = indata[first_part:]
+                self.buffer_filled = True
+            self.write_ptr = (self.write_ptr + frames) % self.buffer_samples
+            if self.write_ptr == 0:
+                self.buffer_filled = True
 
-    def save_audio_loop():
-        while True:
-            time.sleep(refresh)
-            with buffer_lock:
-                if buffer_filled[0]:
-                    end_ptr = write_ptr[0]
+    def _save_audio_loop(self):
+        while not self._stop_event.is_set():
+            time.sleep(self.refresh)
+            with self.buffer_lock:
+                if self.buffer_filled:
+                    end_ptr = self.write_ptr
                     if end_ptr > 0:
-                        recent = np.vstack((audio_buffer[end_ptr:], audio_buffer[:end_ptr]))
+                        recent = np.vstack((self.audio_buffer[end_ptr:], self.audio_buffer[:end_ptr]))
                     else:
-                        recent = audio_buffer.copy()
-                    sf.write(output_file, recent, samplerate)
-                    print(f"[{time.strftime('%H:%M:%S')}] Updated {output_file} with the last {duration} seconds of audio.")
+                        recent = self.audio_buffer.copy()
+                    sf.write(self.output_file, recent, self.samplerate)
+                    print(f"[{time.strftime('%H:%M:%S')}] Updated {self.output_file} with the last {self.duration} seconds of audio.")
                 else:
                     print(f"[{time.strftime('%H:%M:%S')}] Buffer not yet full: waiting to save output.")
 
-    threading.Thread(target=save_audio_loop, daemon=True).start()
+    def start(self):
+        self._save_thread.start()
+        self._stream = sd.InputStream(samplerate=self.samplerate, channels=self.channels, callback=self.audio_callback, blocksize=1024)
+        self._stream.start()
+        print(f"Recording... Outputting rolling {self.duration}-second audio to {self.output_file}. Press Ctrl+C to stop.")
 
-def get_audio_buffer_lock():
-    return buffer_lock_global
-    with sd.InputStream(samplerate=samplerate, channels=channels, callback=audio_callback, blocksize=1024):
-        print(f"Recording... Outputting rolling {duration}-second audio to {output_file}. Press Ctrl+C to stop.")
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            print("Stopped recording.")
+    def stop(self):
+        self._stop_event.set()
+        self._save_thread.join()
+        self._stream.stop()
+        self._stream.close()
+
+    def get_buffer_lock(self):
+        return self.buffer_lock
+
+def run_rolling_audio_capture(duration=15, refresh=1, output_file="last_15_seconds.wav", samplerate=44100, channels=1):
+    rac = RollingAudioCapture(duration, refresh, output_file, samplerate, channels)
+    rac.start()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        rac.stop()
+        print("Stopped recording.")
 
 if __name__ == "__main__":
     run_rolling_audio_capture()
