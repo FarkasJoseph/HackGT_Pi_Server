@@ -6,6 +6,7 @@ import glob
 import threading
 from capture_photos import run_photo_capture, trigger_photo_capture
 from rolling_audio_capture import run_rolling_audio_capture
+from button_watcher import ButtonWatcher
 
 photo_buffer = 20
 audio_buffer = 15
@@ -41,13 +42,16 @@ def start_services_and_package():
     photo_thread.start()
     audio_thread.start()
     print("[INFO] Photo and audio capture started.")
-    print("[INFO] Press Enter to package outputs, or Ctrl+C to exit.")
+    print("[INFO] Press the physical button to package outputs, or Ctrl+C to exit.")
+    watcher = ButtonWatcher(pin=26)
+    watcher.start()
     try:
         while True:
-            input()  # Wait for Enter key
+            watcher.wait_for_press()
             trigger_photo_capture(output_dir="photos", max_photos=photo_buffer)
             package_outputs()
     except KeyboardInterrupt:
+        watcher.stop()
         print("[INFO] Server runner exiting.")
 
 if __name__ == "__main__":
