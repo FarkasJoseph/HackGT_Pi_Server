@@ -1,5 +1,5 @@
 
-from asyncio import sleep
+import time
 import tarfile
 import os
 import glob
@@ -45,7 +45,7 @@ def start_services_and_package():
     try:
         while True:
             input()  # Wait for Enter key
-            sleep(5)  # Give some time for buffers to fill
+            time.sleep(5)  # Give some time for buffers to fill
             package_outputs()
     except KeyboardInterrupt:
         print("[INFO] Server runner exiting.")
