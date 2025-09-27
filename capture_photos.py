@@ -42,7 +42,7 @@ def run_photo_capture(output_dir="photos", max_photos=15, interval=1):
                 oldest = photos[0]
                 try:
                     os.remove(oldest)
-                    print(f"[INFO] Deleted oldest photo '{oldest}'.")
+                    # print(f"[INFO] Deleted oldest photo '{oldest}'.")
                 except Exception as e:
                     print(f"[ERROR] Failed to delete '{oldest}': {e}")
 

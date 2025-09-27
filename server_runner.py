@@ -1,9 +1,8 @@
-import threading
-import time
+
+import tarfile
 import os
 import glob
-import gzip
-import shutil
+import threading
 from capture_photos import run_photo_capture
 from rolling_audio_capture import run_rolling_audio_capture
 
@@ -15,12 +14,12 @@ def package_outputs(photo_dir="photos", audio_file="last_15_seconds.wav", archiv
         files_to_package.append(audio_file)
     else:
         print(f"[WARN] Audio file '{audio_file}' not found for packaging.")
-    # Create a .gzip archive
-    with gzip.open(archive_name, 'wb') as gz:
+    # Create a .tar.gz archive
+    archive_name = archive_name if archive_name.endswith('.tar.gz') else archive_name.replace('.gz', '.tar.gz')
+    with tarfile.open(archive_name, "w:gz") as tar:
         for fname in files_to_package:
-            with open(fname, 'rb') as f:
-                shutil.copyfileobj(f, gz)
-                print(f"[INFO] Added '{fname}' to archive '{archive_name}'.")
+            tar.add(fname, arcname=os.path.basename(fname))
+            print(f"[INFO] Added '{fname}' to archive '{archive_name}'.")
     print(f"[INFO] Packaged {len(files_to_package)} files into '{archive_name}'.")
 
 def start_services_and_package():
@@ -30,9 +29,10 @@ def start_services_and_package():
     photo_thread.start()
     audio_thread.start()
     print("[INFO] Photo and audio capture started.")
+    print("[INFO] Press Enter to package outputs, or Ctrl+C to exit.")
     try:
         while True:
-            time.sleep(15)  # Package every 15 seconds
+            input()  # Wait for Enter key
             package_outputs()
     except KeyboardInterrupt:
         print("[INFO] Server runner exiting.")
