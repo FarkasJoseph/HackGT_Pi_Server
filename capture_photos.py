@@ -4,7 +4,7 @@ import time
 import os
 import glob
 
-def run_photo_capture(output_dir="photos", max_photos=15, interval=1):
+def run_photo_capture(output_dir="photos", max_photos=15, interval=0.2):
     os.makedirs(output_dir, exist_ok=True)
     print(f"[INFO] Output directory is '{output_dir}'.")
 
@@ -42,7 +42,6 @@ def run_photo_capture(output_dir="photos", max_photos=15, interval=1):
                 oldest = photos[0]
                 try:
                     os.remove(oldest)
-                    # print(f"[INFO] Deleted oldest photo '{oldest}'.")
                 except Exception as e:
                     print(f"[ERROR] Failed to delete '{oldest}': {e}")
 
@@ -56,6 +55,24 @@ def run_photo_capture(output_dir="photos", max_photos=15, interval=1):
     finally:
         cap.release()
         print("[INFO] Webcam stream released.")
+
+def trigger_photo_capture(output_dir="photos", max_photos=15):
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("[ERROR] Could not open webcam for trigger.")
+        return None
+    ret, frame = cap.read()
+    if not ret:
+        print("[ERROR] Failed to grab frame for trigger.")
+        cap.release()
+        return None
+    photos = sorted(glob.glob(os.path.join(output_dir, "photo_*.jpg")))
+    counter = len(photos)
+    photo_filename = os.path.join(output_dir, f"photo_{counter:04d}.jpg")
+    cv2.imwrite(photo_filename, frame)
+    print(f"[TRIGGER] Saved new photo as '{photo_filename}'.")
+    cap.release()
+    return photo_filename
 
 if __name__ == "__main__":
     run_photo_capture()
