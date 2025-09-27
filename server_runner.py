@@ -1,4 +1,5 @@
 
+from asyncio import sleep
 import tarfile
 import os
 import glob
@@ -9,7 +10,7 @@ from rolling_audio_capture import run_rolling_audio_capture
 photo_buffer = 15
 audio_buffer = 15
 
-def package_outputs(photo_dir="photos", audio_file="last_15_seconds.wav", archive_name="output_package.gz"):
+def package_outputs(photo_dir="photos", audio_file="audio_buffer.wav", archive_name="output_package.gz"):
     # Collect latest photo files
     photos = sorted(glob.glob(os.path.join(photo_dir, "photo_*.jpg")))
     files_to_package = photos[-photo_buffer:] if len(photos) >= photo_buffer else photos  # Package last 15 photos
@@ -36,7 +37,7 @@ def package_outputs(photo_dir="photos", audio_file="last_15_seconds.wav", archiv
 def start_services_and_package():
     # Start photo and audio capture in background threads
     photo_thread = threading.Thread(target=run_photo_capture, kwargs={"output_dir": "photos", "max_photos": photo_buffer, "interval": 1}, daemon=True)
-    audio_thread = threading.Thread(target=run_rolling_audio_capture, kwargs={"duration": audio_buffer, "refresh": 1, "output_file": "last_15_seconds.wav", "samplerate": 44100, "channels": 1}, daemon=True)
+    audio_thread = threading.Thread(target=run_rolling_audio_capture, kwargs={"duration": audio_buffer, "refresh": 1, "output_file": "audio_buffer.wav", "samplerate": 44100, "channels": 1}, daemon=True)
     photo_thread.start()
     audio_thread.start()
     print("[INFO] Photo and audio capture started.")
@@ -44,6 +45,7 @@ def start_services_and_package():
     try:
         while True:
             input()  # Wait for Enter key
+            sleep(1)  # Give some time for buffers to fill
             package_outputs()
     except KeyboardInterrupt:
         print("[INFO] Server runner exiting.")
