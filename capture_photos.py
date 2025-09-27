@@ -32,7 +32,7 @@ def run_photo_capture(output_dir="photos", max_photos=15, interval=1):
                 print("[ERROR] Failed to grab frame from webcam.")
                 break
 
-            photo_filename = os.path.join(output_dir, f"photo_{counter:04d}.jpg")
+            photo_filename = os.path.join(output_dir, f"photo_{counter:07d}.jpg")
             cv2.imwrite(photo_filename, frame)
             print(f"[INFO] Saved new photo as '{photo_filename}'.")
 
@@ -68,7 +68,7 @@ def trigger_photo_capture(output_dir="photos", max_photos=15):
         return None
     photos = sorted(glob.glob(os.path.join(output_dir, "photo_*.jpg")))
     counter = len(photos)
-    photo_filename = os.path.join(output_dir, f"photo_{counter:04d}.jpg")
+    photo_filename = os.path.join(output_dir, f"photo_{counter:07d}.jpg")
     cv2.imwrite(photo_filename, frame)
     print(f"[TRIGGER] Saved new photo as '{photo_filename}'.")
     cap.release()
