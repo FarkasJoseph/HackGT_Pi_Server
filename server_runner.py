@@ -7,24 +7,48 @@ from capture_photos import run_photo_capture, trigger_photo_capture
 from rolling_audio_capture import RollingAudioCapture
 from button_watcher import ButtonWatcher
 import requests
+from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
-photo_buffer = 8
+
+
+photo_buffer = 20
 audio_buffer = 15
 
-def upload_tar_gz_stream(file_path: str):
+def upload_tar_gz(file_path: str):
     """
-    Uploads a .tar.gz file to the endpoint using streaming to avoid BrokenPipeError.
+    Uploads a .tar.gz file to the endpoint using multipart/form-data streaming.
+    
+    Args:
+        file_path (str): Path to the .tar.gz file.
+        
+    Returns:
+        response: The server's response object, or None if an error occurred.
     """
     endpoint = "http://192.168.68.150:8080/api/device-upload/68d815d73a56a6fa6fccdf24"
 
     try:
-        with open(file_path, "rb") as f:
-            # Send the file as raw data in the body (streaming)
-            headers = {"Content-Type": "application/gzip"}
-            response = requests.post(endpoint, data=f, headers=headers, stream=True)
-        
+        # Create a MultipartEncoder for streaming
+        encoder = MultipartEncoder(
+            fields={
+                "file": (file_path, open(file_path, "rb"), "application/gzip")
+            }
+        )
+
+        # Optional: Monitor progress
+        def progress_monitor(monitor):
+            print(f"Uploaded {monitor.bytes_read} of {monitor.len} bytes "
+                  f"({(monitor.bytes_read/monitor.len)*100:.2f}%)", end='\r')
+
+        monitor = MultipartEncoderMonitor(encoder, progress_monitor)
+
+        # Content-Type is automatically multipart/form-data with boundary
+        headers = {"Content-Type": monitor.content_type}
+
+        # Send POST request
+        response = requests.post(endpoint, data=monitor, headers=headers)
+
         response.raise_for_status()
-        print(f"Upload successful! Status code: {response.status_code}")
+        print(f"\nUpload successful! Status code: {response.status_code}")
         return response
 
     except requests.exceptions.RequestException as e:
@@ -58,7 +82,7 @@ def package_outputs(photo_dir="photos", audio_file="audio_buffer.wav", archive_n
             tar.add(fname, arcname=os.path.basename(fname))
             print(f"[INFO] Added '{fname}' to archive '{archive_name}'.")
     print(f"[INFO] Packaged {len(files_to_package)} files into '{archive_name}'.")
-    upload_tar_gz_stream("output_package.tar.gz")
+    upload_tar_gz("output_package.tar.gz")
     # Delete the temporary audio copy
     if temp_audio_file and os.path.exists(temp_audio_file):
         os.remove(temp_audio_file)
