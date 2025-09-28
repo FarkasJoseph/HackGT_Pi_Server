@@ -10,6 +10,10 @@ class ButtonWatcher:
         self.thread = threading.Thread(target=self._watch, daemon=True)
 
     def _watch(self):
+        # Wait for button to be released initially
+        while self.button.is_pressed and not self._stop_event.is_set():
+            time.sleep(0.05)
+
         while not self._stop_event.is_set():
             if self.button.is_pressed:
                 self._pressed_event.set()

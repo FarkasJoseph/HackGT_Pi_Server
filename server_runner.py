@@ -9,8 +9,6 @@ from button_watcher import ButtonWatcher
 import requests
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 
-
-
 photo_buffer = 20
 audio_buffer = 15
 
@@ -82,7 +80,7 @@ def package_outputs(photo_dir="photos", audio_file="audio_buffer.wav", archive_n
             tar.add(fname, arcname=os.path.basename(fname))
             print(f"[INFO] Added '{fname}' to archive '{archive_name}'.")
     print(f"[INFO] Packaged {len(files_to_package)} files into '{archive_name}'.")
-    upload_tar_gz("output_package.tar.gz")
+    upload_tar_gz(archive_name)
     # Delete the temporary audio copy
     if temp_audio_file and os.path.exists(temp_audio_file):
         os.remove(temp_audio_file)
