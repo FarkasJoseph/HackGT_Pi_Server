@@ -1,4 +1,3 @@
-
 import time
 import tarfile
 import os
@@ -7,9 +6,38 @@ import threading
 from capture_photos import run_photo_capture, trigger_photo_capture
 from rolling_audio_capture import RollingAudioCapture
 from button_watcher import ButtonWatcher
+import requests
 
-photo_buffer = 20
+photo_buffer = 8
 audio_buffer = 15
+
+def upload_tar_gz(file_path: str):
+    """
+    Uploads a .tar.gz file to the given endpoint.
+    
+    Args:
+        file_path (str): Path to the .tar.gz file.
+        
+    Returns:
+        response: The response object from the server.
+    """
+    endpoint = "http://192.168.68.150:8080/api/device-upload/68d815d73a56a6fa6fccdf24"
+    
+    try:
+        with open(file_path, "rb") as f:
+            files = {
+                "file": ("output_package.tar.gz", f, "application/gzip")
+            }
+            response = requests.post(endpoint, files=files)
+            
+        # Optionally check for success
+        response.raise_for_status()
+        print(f"Upload successful! Status code: {response.status_code}")
+        return response
+    
+    except requests.exceptions.RequestException as e:
+        print(f"An error occurred: {e}")
+        return None
 
 def package_outputs(photo_dir="photos", audio_file="audio_buffer.wav", archive_name="output_package.gz", audio_capture=None):
     # Collect latest photo files
