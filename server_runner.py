@@ -11,30 +11,22 @@ import requests
 photo_buffer = 8
 audio_buffer = 15
 
-def upload_tar_gz(file_path: str):
+def upload_tar_gz_stream(file_path: str):
     """
-    Uploads a .tar.gz file to the given endpoint.
-    
-    Args:
-        file_path (str): Path to the .tar.gz file.
-        
-    Returns:
-        response: The response object from the server.
+    Uploads a .tar.gz file to the endpoint using streaming to avoid BrokenPipeError.
     """
     endpoint = "http://192.168.68.150:8080/api/device-upload/68d815d73a56a6fa6fccdf24"
-    
+
     try:
         with open(file_path, "rb") as f:
-            files = {
-                "file": ("output_package.tar.gz", f, "application/gzip")
-            }
-            response = requests.post(endpoint, files=files)
-            
-        # Optionally check for success
+            # Send the file as raw data in the body (streaming)
+            headers = {"Content-Type": "application/gzip"}
+            response = requests.post(endpoint, data=f, headers=headers, stream=True)
+        
         response.raise_for_status()
         print(f"Upload successful! Status code: {response.status_code}")
         return response
-    
+
     except requests.exceptions.RequestException as e:
         print(f"An error occurred: {e}")
         return None
